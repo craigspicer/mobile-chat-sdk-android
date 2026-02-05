@@ -4,95 +4,69 @@
  *
  * Copyright (c) 2024 Hubspot, Inc.
  ************************************************/
-import org.jetbrains.dokka.base.DokkaBase
-import org.jetbrains.dokka.base.DokkaBaseConfiguration
-import org.jetbrains.dokka.gradle.DokkaTask
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    alias(libs.plugins.android.application) apply false
-    alias(libs.plugins.kotlin.android) apply false
-    alias(libs.plugins.android.library) apply false
-    alias(libs.plugins.detekt) apply false
-    alias(libs.plugins.kotlin.serialization) apply false
-    alias(libs.plugins.ksp) apply false
-    alias(libs.plugins.hilt) apply false
+    alias(libs.plugins.android.library)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.detekt)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.dokka)
+    alias(libs.plugins.ksp)
     alias(libs.plugins.google.services)
+
+    id("com.vanniktech.maven.publish") version "0.34.0"
+    id("net.researchgate.release") version "3.0.2"
 }
 
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-        gradlePluginPortal()
-    }
-    dependencies {
-        classpath(libs.dokka.base)
+release {
+    failOnUnversionedFiles = false
+    git {
+        requireBranch.set("release")
     }
 }
-subprojects {
-    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-        compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_17)
-            freeCompilerArgs.addAll(
-                "-Xuse-experimental=kotlinx.coroutines.ExperimentalCoroutinesApi",
-                "-Xstring-concat=inline"
-            )
-        }
-    }
 
-    tasks.withType<DokkaTask>().configureEach {
-        suppressInheritedMembers = true
-        moduleName.set(project.name)
-        moduleVersion.set(project.version.toString())
-        failOnWarning.set(false)
-        suppressObviousFunctions.set(true)
-        offlineMode.set(false)
-        dokkaSourceSets {
-            moduleName.set("HubspotMobile SDK")
-            configureEach {
-                includes.from(project.files(), "HubspotMobileSDK.md")
-            }
+tasks.named("afterReleaseBuild") {
+    dependsOn("publish")
+}
 
-        }
-        pluginConfiguration<DokkaBase, DokkaBaseConfiguration> {
-            customStyleSheets = listOf(file("logo-styles.css"))
-            customAssets = listOf(file("hubspot-logo.png"))
-            footerMessage = "<br><div>Hubspot Mobile SDK</div><br><div>Copyright © 2024 Hubspot, Inc.</div><br>"
-            separateInheritedMembers = false
-            mergeImplicitExpectActualDeclarations = false
-        }
-    }
+android {
+    namespace = "com.hubspot.mobilesdk"
 
-    afterEvaluate {
-        extensions.findByType<com.android.build.gradle.BaseExtension>()?.run {
-            compileSdkVersion(36)
-            defaultConfig {
-                minSdk = 26
-                targetSdk = 35
-            }
-            compileOptions {
-                sourceCompatibility = JavaVersion.VERSION_17
-                targetCompatibility = JavaVersion.VERSION_17
+    buildTypes {
+        release {
+            buildConfigField("Boolean", "DEBUG", "false")
+            buildConfigField("String", "version", "\"${version}\"")
+            postprocessing {
+                consumerProguardFile("consumer-rules.pro")
+                isMinifyEnabled = false
             }
         }
-    }
-}
 
-allprojects {
-    tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
-        reports {
-            xml.required.set(false)
-            txt.required.set(false)
-            sarif.required.set(false)
-            html.required.set(true)
-            html.outputLocation.set(file("${project.buildDir}/reports/detekt/detekt.html"))
+        debug {
+            buildConfigField("Boolean", "DEBUG", "true")
+            buildConfigField("String", "version", "\"${version}\"")
         }
     }
+
+    buildFeatures {
+        viewBinding = true
+        buildConfig = true
+    }
 }
 
-tasks.withType<Wrapper> {
-    gradleVersion = "8.13"
-    distributionType = Wrapper.DistributionType.BIN
+dependencies {
+    implementation(libs.androidx.ktx)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.android.material)
+    implementation(libs.constraintlayout)
+    implementation(libs.timber)
+    implementation(libs.navigation)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.retrofit)
+    implementation(libs.converter.moshi)
+    implementation(libs.moshi)
+    ksp(libs.moshi.kotlin)
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.logging)
+    implementation(libs.firebase.messaging)
 }
