@@ -69,3 +69,7 @@ dependencies {
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
     implementation("com.google.firebase:firebase-messaging:23.4.0")
 }
+
+tasks.withType<Sign>().configureEach {
+    enabled = false
+}
