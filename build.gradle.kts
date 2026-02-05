@@ -96,3 +96,7 @@ tasks.withType<Wrapper> {
     gradleVersion = "8.13"
     distributionType = Wrapper.DistributionType.BIN
 }
+
+tasks.withType<Sign>().configureEach {
+    onlyIf { gradle.taskGraph.hasTask("publish") && !gradle.taskGraph.hasTask("publishToMavenLocal") }
+}
