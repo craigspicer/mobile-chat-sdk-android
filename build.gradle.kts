@@ -4,68 +4,95 @@
  *
  * Copyright (c) 2024 Hubspot, Inc.
  ************************************************/
+import org.jetbrains.dokka.base.DokkaBase
+import org.jetbrains.dokka.base.DokkaBaseConfiguration
+import org.jetbrains.dokka.gradle.DokkaTask
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    id("com.android.library")
-    id("org.jetbrains.kotlin.android")
-    id("io.gitlab.arturbosch.detekt") version "1.23.0"
-    id("org.jetbrains.kotlin.plugin.serialization") version "1.9.20"
-    id("org.jetbrains.dokka") version "1.9.10"
-    id("com.google.devtools.ksp") version "1.9.20-1.0.14"
-
-    id("com.vanniktech.maven.publish") version "0.34.0"
-    id("net.researchgate.release") version "3.0.2"
+    alias(libs.plugins.android.application) apply false
+    alias(libs.plugins.kotlin.android) apply false
+    alias(libs.plugins.android.library) apply false
+    alias(libs.plugins.detekt) apply false
+    alias(libs.plugins.kotlin.serialization) apply false
+    alias(libs.plugins.ksp) apply false
+    alias(libs.plugins.hilt) apply false
+    alias(libs.plugins.dokka)
+    alias(libs.plugins.google.services)
 }
 
-release {
-    failOnUnversionedFiles = false
-    git {
-        requireBranch.set("release")
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+    dependencies {
+        classpath(libs.dokka.base)
     }
 }
+subprojects {
+    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+            freeCompilerArgs.addAll(
+                "-Xuse-experimental=kotlinx.coroutines.ExperimentalCoroutinesApi",
+                "-Xstring-concat=inline"
+            )
+        }
+    }
 
-tasks.named("afterReleaseBuild") {
-    dependsOn("publish")
-}
+    tasks.withType<DokkaTask>().configureEach {
+        suppressInheritedMembers = true
+        moduleName.set(project.name)
+        moduleVersion.set(project.version.toString())
+        failOnWarning.set(false)
+        suppressObviousFunctions.set(true)
+        offlineMode.set(false)
+        dokkaSourceSets {
+            moduleName.set("HubspotMobile SDK")
+            configureEach {
+                includes.from(project.files(), "HubspotMobileSDK.md")
+            }
 
-android {
-    namespace = "com.hubspot.mobilesdk"
+        }
+        pluginConfiguration<DokkaBase, DokkaBaseConfiguration> {
+            customStyleSheets = listOf(file("logo-styles.css"))
+            customAssets = listOf(file("hubspot-logo.png"))
+            footerMessage = "<br><div>Hubspot Mobile SDK</div><br><div>Copyright © 2024 Hubspot, Inc.</div><br>"
+            separateInheritedMembers = false
+            mergeImplicitExpectActualDeclarations = false
+        }
+    }
 
-    buildTypes {
-        release {
-            buildConfigField("Boolean", "DEBUG", "false")
-            buildConfigField("String", "version", "\"${version}\"")
-            postprocessing {
-                consumerProguardFile("consumer-rules.pro")
-                isMinifyEnabled = false
+    afterEvaluate {
+        extensions.findByType<com.android.build.gradle.BaseExtension>()?.run {
+            compileSdkVersion(36)
+            defaultConfig {
+                minSdk = 26
+                targetSdk = 35
+            }
+            compileOptions {
+                sourceCompatibility = JavaVersion.VERSION_17
+                targetCompatibility = JavaVersion.VERSION_17
             }
         }
-
-        debug {
-            buildConfigField("Boolean", "DEBUG", "true")
-            buildConfigField("String", "version", "\"${version}\"")
-        }
-    }
-
-    buildFeatures {
-        viewBinding = true
-        buildConfig = true
     }
 }
 
-dependencies {
-    implementation("androidx.core:core-ktx:1.12.0")
-    implementation("androidx.appcompat:appcompat:1.6.1")
-    implementation("com.google.android.material:material:1.11.0")
-    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
-    implementation("com.jakewharton.timber:timber:5.0.1")
-    implementation("androidx.navigation:navigation-fragment-ktx:2.7.6")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2")
-    implementation("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation("com.squareup.retrofit2:converter-moshi:2.9.0")
-    implementation("com.squareup.moshi:moshi:1.15.0")
-    ksp("com.squareup.moshi:moshi-kotlin-codegen:1.15.0")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
-    implementation("com.google.firebase:firebase-messaging:23.4.0")
+allprojects {
+    tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
+        reports {
+            xml.required.set(false)
+            txt.required.set(false)
+            sarif.required.set(false)
+            html.required.set(true)
+            html.outputLocation.set(file("${project.buildDir}/reports/detekt/detekt.html"))
+        }
+    }
+}
+
+tasks.withType<Wrapper> {
+    gradleVersion = "8.13"
+    distributionType = Wrapper.DistributionType.BIN
 }
