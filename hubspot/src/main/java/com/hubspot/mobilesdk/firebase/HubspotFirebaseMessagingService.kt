@@ -49,7 +49,7 @@ open class HubspotFirebaseMessagingService : FirebaseMessagingService() {
      */
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
-        sendPushNotificationData(PushNotificationChatData(message.data))
+//        sendPushNotificationData(PushNotificationChatData(message.data))
     }
 
     /**
