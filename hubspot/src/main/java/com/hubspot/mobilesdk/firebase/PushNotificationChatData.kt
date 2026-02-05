@@ -38,7 +38,7 @@ class PushNotificationChatData(notificationData: Map<String, String>) : Serializ
      */
     init {
         if (title == null && body == null && portalId == null && threadId == null && chatflow == null) {
-            throw IllegalArgumentException("At least one key must be set")
+            // throw IllegalArgumentException("At least one key must be set")
         }
     }
 
